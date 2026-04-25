@@ -2,7 +2,8 @@ import express from "express";
 import cors from "cors";
 import axios from "axios";
 import { v7 as uuidv7 } from "uuid";
-import { PrismaClient } from "@prisma/client";
+import pkg from "@prisma/client";
+const { PrismaClient } = pkg;
 
 const app = express();
 const prisma = new PrismaClient();
@@ -10,7 +11,7 @@ const prisma = new PrismaClient();
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 
-// Health check (IMPORTANT for testing Vercel)
+// Health check
 app.get("/", (req, res) => {
   res.json({ status: "API is running" });
 });
