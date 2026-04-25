@@ -6,7 +6,7 @@ import pkg from "@prisma/client";
 const { PrismaClient } = pkg;
 
 const app = express();
-const prisma = new PrismaClient();
+
 
 app.use(cors({ origin: "*" }));
 app.use(express.json());
