@@ -1,8 +1,8 @@
-import express from 'express';
-import cors from 'cors';
-import axios from 'axios';
-import { v7 as uuidv7 } from 'uuid';
-import { PrismaClient } from '@prisma/client';
+const express = require('express');
+const cors = require('cors');
+const axios = require('axios');
+const { v7: uuidv7 } = require('uuid');
+const { PrismaClient } = require('@prisma/client');
 
 const app = express();
 const prisma = new PrismaClient();
@@ -18,25 +18,18 @@ const getAgeGroup = (age) => {
   return 'senior';
 };
 
-// ====================== POST /api/profiles ======================
+// POST /api/profiles
 app.post('/api/profiles', async (req, res) => {
   const { name } = req.body;
 
   if (!name || typeof name !== 'string' || name.trim() === '') {
-    return res.status(400).json({
-      status: "error",
-      message: "Name is required and must be a non-empty string"
-    });
+    return res.status(400).json({ status: "error", message: "Name is required and must be a non-empty string" });
   }
 
   const cleanName = name.trim().toLowerCase();
 
   try {
-    // Idempotency check
-    const existing = await prisma.profile.findUnique({
-      where: { name: cleanName }
-    });
-
+    const existing = await prisma.profile.findUnique({ where: { name: cleanName } });
     if (existing) {
       return res.status(200).json({
         status: "success",
@@ -45,18 +38,16 @@ app.post('/api/profiles', async (req, res) => {
       });
     }
 
-    // Call external APIs
     const [genderRes, ageRes, nationRes] = await Promise.all([
-      axios.get(`https://api.genderize.io?name=${encodeURIComponent(cleanName)}`),
-      axios.get(`https://api.agify.io?name=${encodeURIComponent(cleanName)}`),
-      axios.get(`https://api.nationalize.io?name=${encodeURIComponent(cleanName)}`)
+      axios.get(`https://api.genderize.io?name=${cleanName}`),
+      axios.get(`https://api.agify.io?name=${cleanName}`),
+      axios.get(`https://api.nationalize.io?name=${cleanName}`)
     ]);
 
     const g = genderRes.data;
     const a = ageRes.data;
     const n = nationRes.data;
 
-    // Edge case checks
     if (!g.gender || g.count === 0) {
       return res.status(502).json({ status: "error", message: "Genderize returned an invalid response" });
     }
@@ -67,9 +58,7 @@ app.post('/api/profiles', async (req, res) => {
       return res.status(502).json({ status: "error", message: "Nationalize returned an invalid response" });
     }
 
-    const bestCountry = n.country.reduce((prev, curr) => 
-      prev.probability > curr.probability ? prev : curr
-    );
+    const bestCountry = n.country.reduce((prev, curr) => prev.probability > curr.probability ? prev : curr);
 
     const profile = await prisma.profile.create({
       data: {
@@ -85,35 +74,26 @@ app.post('/api/profiles', async (req, res) => {
       }
     });
 
-    res.status(201).json({
-      status: "success",
-      data: profile
-    });
+    res.status(201).json({ status: "success", data: profile });
 
   } catch (error) {
-    console.error("POST /api/profiles error:", error);
+    console.error(error);
     res.status(500).json({ status: "error", message: "Internal server error" });
   }
 });
 
-// ====================== GET /api/profiles/:id ======================
+// GET single profile
 app.get('/api/profiles/:id', async (req, res) => {
   try {
-    const profile = await prisma.profile.findUnique({
-      where: { id: req.params.id }
-    });
-
-    if (!profile) {
-      return res.status(404).json({ status: "error", message: "Profile not found" });
-    }
-
+    const profile = await prisma.profile.findUnique({ where: { id: req.params.id } });
+    if (!profile) return res.status(404).json({ status: "error", message: "Profile not found" });
     res.json({ status: "success", data: profile });
   } catch (error) {
     res.status(500).json({ status: "error", message: "Internal server error" });
   }
 });
 
-// ====================== GET /api/profiles (with filters) ======================
+// GET all profiles with filters
 app.get('/api/profiles', async (req, res) => {
   const { gender, country_id, age_group } = req.query;
 
@@ -146,12 +126,10 @@ app.get('/api/profiles', async (req, res) => {
   }
 });
 
-// ====================== DELETE /api/profiles/:id ======================
+// DELETE profile
 app.delete('/api/profiles/:id', async (req, res) => {
   try {
-    await prisma.profile.delete({
-      where: { id: req.params.id }
-    });
+    await prisma.profile.delete({ where: { id: req.params.id } });
     res.status(204).send();
   } catch (error) {
     if (error.code === 'P2025') {
@@ -161,7 +139,6 @@ app.delete('/api/profiles/:id', async (req, res) => {
   }
 });
 
-// Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
